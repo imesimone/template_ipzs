@@ -31,6 +31,4 @@ Tutti i template sono stati sottoposti a un processo di revisione e allineamento
 - Il modello per le professioni sanitarie è stato raffinato utilizzando come riferimento lo `schema_dati_professioni_sanitarie_v01.yaml`, adottando una nomenclatura dei campi più coerente con gli standard di interoperabilità (es. `issuing_organization_name`, `registration_number`, `professional_albo`).
 
 ## Struttura della Repository
-- `/backup`: Contiene le versioni originali dei file YAML prima degli interventi di adeguamento.
-- `OAS3-PDND-AS.yaml`: Specifica di riferimento IT-Wallet.
-- `schema_dati_professioni_sanitarie_v01.yaml`: Schema dati di riferimento per le professioni sanitarie.
+- `/backup`: Contiene le versioni originali dei file YAML e i file di specifica di riferimento (`OAS3-PDND-AS.yaml`, `schema_dati_professioni_sanitarie_v01.yaml`).
