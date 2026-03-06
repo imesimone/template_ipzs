@@ -1,0 +1,184 @@
+openapi: 3.0.1
+info:
+  title: IT Wallet API - FNOMCeO Authentic Source
+  version: 0.2.0
+  description: |
+    API della Federazione Nazionale dei Medici Chirurghi e degli Odontoiatri per IT-Wallet.
+    Gestisce il recupero dei dati certificati per la tessera professionale digitale, inclusi i dati anagrafici, 
+    professionali e le immagini (logo e foto) in formato Base64.
+  termsOfService: "https://www.fnomceo.it/termini-servizio/"
+  contact:
+    name: FNOMCeO - Supporto Tecnico
+    url: "https://www.fnomceo.it/contatti/"
+    email: ced@fnomceo.it
+  x-api-id: FWAL-FNOMCEO-02
+  x-summary: FNOMCeO Authentic Source per IT-Wallet.
+
+servers:
+  - url: https://api-gw.fnomceo.it/govway/rest/out/Zecca/fnomceo-tessera/v0.2.0
+    description: Production Server (Gateway GovWay)
+
+tags:
+  - name: status
+    description: Endpoint per il monitoraggio della disponibilità del servizio.
+  - name: credential
+    description: Servizi per il recupero dei claim delle credenziali professionali.
+
+paths:
+  /status:
+    get:
+      tags: [status]
+      summary: Check status API
+      description: Verifica lo stato operativo dell'API FNOMCeO per il monitoraggio della disponibilità.
+      operationId: authenticSourceStatus
+      responses:
+        "200":
+          description: Service disponibile
+          headers:
+            Cache-Control: { $ref: "#/components/headers/CacheControlHeader" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ProblemDetails" }
+        "429":
+          description: Too Many Requests
+          headers:
+            Retry-After: { $ref: "#/components/headers/RetryAfterHeader" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ProblemDetails" }
+
+  /attribute-claims/medici-odontoiatri:
+    post:
+      tags: [credential]
+      summary: Get Health Professional Attribute Claims
+      description: |
+        Recupera i dati completi della tessera professionale basati su ID ANPR o Codice Fiscale. 
+        Garantisce l'integrità tramite pattern INTEGRITY_REST_02.
+      operationId: attributeClaims
+      parameters:
+        - $ref: "#/components/parameters/Agid-JWT-Signature"
+        - $ref: "#/components/parameters/Digest"
+        - $ref: "#/components/parameters/Agid-Jwt-TrackingEvidence"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CredentialClaimsRequest" }
+      responses:
+        "200":
+          description: OK - Dati tessera recuperati con successo
+          headers:
+            Agid-JWT-Signature: { required: true, schema: { type: string } }
+            Digest: { required: true, schema: { type: string } }
+            Cache-Control: { $ref: "#/components/headers/CacheControlHeader" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FNOMCeOResponse" }
+        "429":
+          description: Too Many Requests
+          headers:
+            Retry-After: { $ref: "#/components/headers/RetryAfterHeader" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ProblemDetails" }
+
+components:
+  parameters:
+    Agid-JWT-Signature:
+      name: Agid-JWT-Signature
+      in: header
+      required: true
+      schema: { type: string, format: JWT }
+    Digest:
+      name: Digest
+      in: header
+      required: true
+      schema: { type: string }
+    Agid-Jwt-TrackingEvidence:
+      name: Agid-Jwt-TrackingEvidence
+      in: header
+      required: true
+      schema: { type: string, format: JWT }
+
+  headers:
+    CacheControlHeader:
+      description: |
+        Direttiva RFC 7234. Impostata a 'no-store' per impedire la memorizzazione di dati professionali sensibili.
+      schema: { type: string, enum: [no-store] }
+    RetryAfterHeader:
+      description: Indica il tempo di attesa consigliato prima di riprovare (RFC 7231).
+      schema: { type: string, example: "3600" }
+    X-RateLimit-Limit:
+      description: Numero massimo di richieste consentite per finestra temporale.
+      schema: { type: integer, format: int32 }
+    X-RateLimit-Remaining:
+      description: Numero di richieste ancora disponibili nella finestra corrente.
+      schema: { type: integer, format: int32 }
+    X-RateLimit-Reset:
+      description: Tempo rimanente in secondi prima del reset del limite.
+      schema: { type: integer, format: int32 }
+
+  schemas:
+    CredentialClaimsRequest:
+      type: object
+      required: [unique_id]
+      properties:
+        unique_id: { type: string, description: "ID ANPR o Codice Fiscale del professionista" }
+
+    FNOMCeOResponse:
+      type: object
+      required: [userClaims, attributeClaims, metadataClaims]
+      properties:
+        userClaims:
+          type: object
+          properties:
+            given_name: { type: string, example: "Mario" }
+            family_name: { type: string, example: "Rossi" }
+            birth_date: { type: string, format: date }
+            birth_place: { type: string, description: "Corrisponde a luogoNascita dell'originale" }
+            tax_id_code: { type: string }
+        attributeClaims:
+          type: array
+          items:
+            type: object
+            required: [object_id, status, last_updated, ordine, alboAppartenenza, numeroIscrizioneAlbo, logoOrdine, fotoProfessionista, serialeCarta, multilingua]
+            properties:
+              object_id: { type: string }
+              status: { type: string, enum: [VALID, INVALID, SUSPENDED] }
+              last_updated: { type: string, format: date-time }
+              # Dati di business importati dal file originale IPZS
+              ordine: { type: string, description: "Denominazione ESTESA Ordine Provinciale" }
+              enteRilascio: { type: string, description: "Denominazione CORTA (es. OMCeO Roma)" }
+              alboAppartenenza: { type: string, enum: [M, O, M e O] }
+              numeroIscrizioneAlbo: { type: string, example: "M:123, O:456" }
+              serialeCarta: { type: string, example: "RM-2026-12345" }
+              numeroEnpam: { type: string, nullable: true }
+              multilingua: { type: string, enum: ["0", "1"] }
+              logoOrdine: { type: string, format: byte, description: "Logo Ordine in Base64 (max 10KB)" }
+              fotoProfessionista: { type: string, format: byte, description: "Foto in Base64 (max 10KB)" }
+        metadataClaims:
+          type: array
+          items:
+            type: object
+            required: [object_id, issuance_date, expiry_date]
+            properties:
+              object_id: { type: string }
+              issuance_date: { type: string, format: date, description: "Data rilascio tessera" }
+              expiry_date: { type: string, format: date, description: "Data scadenza tessera" }
+        interval: { type: integer, format: int64, example: 864000 }
+
+    ProblemDetails:
+      type: object
+      required: [title, status, detail]
+      properties:
+        title: { type: string }
+        status: { type: integer, format: int32 }
+        detail: { type: string }

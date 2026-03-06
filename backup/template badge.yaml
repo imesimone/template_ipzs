@@ -1,0 +1,218 @@
+openapi: 3.0.1
+info:
+  title: IT Wallet API - Employee Badge Authentic Source
+  version: 0.2.0
+  description: |
+    API per la fornitura dei dati necessari alla generazione di un Badge Dipendente Digitale.
+    Il servizio permette il recupero dei claim relativi all'identità aziendale e professionale 
+    in conformità agli standard Schema.org (Organization/Person).
+  termsOfService: "https://www.provider.example.it/terms/"
+  contact:
+    name: Supporto Tecnico Badge Digitale
+    url: "https://www.provider.example.it/support"
+    email: helpdesk@provider.example.it
+  x-api-id: ASITW-BGE-01
+  x-summary: Universal Employee Badge Authentic Source.
+
+servers:
+  - url: https://api.provider.example.it/v0.2.0
+    description: Production Server
+
+tags:
+  - name: status
+    description: Endpoint per il monitoraggio della salute del servizio.
+  - name: credential
+    description: Endpoint per il rilascio dei claim del badge.
+
+security:
+  - BearerAuth: []
+  - DPoPAuth: []
+
+paths:
+  /status:
+    get:
+      tags: [status]
+      summary: Check status API
+      description: Verifica lo stato operativo dell'Authentic Source.
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Servizio attivo
+          headers:
+            Cache-Control: { $ref: "#/components/headers/CacheControlHeader" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ProblemDetails" }
+        "429":
+          description: Too Many Requests
+          headers:
+            Retry-After: { $ref: "#/components/headers/RetryAfterHeader" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ProblemDetails" }
+
+  /attribute-claims/employee-badge:
+    post:
+      tags: [credential]
+      summary: Get Employee Badge Attribute Claims
+      description: |
+        Recupera i claim attributo (Organization e PII) necessari per generare il badge dipendente. 
+        Richiede l'integrità del messaggio tramite pattern INTEGRITY_REST_02.
+      operationId: employeeBadgeClaims
+      parameters:
+        - $ref: "#/components/parameters/Agid-JWT-Signature"
+        - $ref: "#/components/parameters/Digest"
+        - $ref: "#/components/parameters/Agid-Jwt-TrackingEvidence"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialClaimsRequest"
+      responses:
+        "200":
+          description: OK - Claims generati con successo
+          headers:
+            Agid-JWT-Signature: 
+              description: Firma JWS degli header per garantire l'integrità.
+              schema: { type: string }
+            Digest: 
+              description: Hash del contenuto della risposta per verifica integrità.
+              schema: { type: string }
+            Cache-Control: { $ref: "#/components/headers/CacheControlHeader" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadgeResponse"
+        "429":
+          description: Too Many Requests
+          headers:
+            Retry-After: { $ref: "#/components/headers/RetryAfterHeader" }
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ProblemDetails" }
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    DPoPAuth:
+      type: apiKey
+      in: header
+      name: DPoP
+
+  parameters:
+    Agid-JWT-Signature:
+      name: Agid-JWT-Signature
+      in: header
+      required: true
+      schema: { type: string, format: JWT }
+    Digest:
+      name: Digest
+      in: header
+      required: true
+      schema: { type: string }
+    Agid-Jwt-TrackingEvidence:
+      name: Agid-Jwt-TrackingEvidence
+      in: header
+      required: true
+      schema: { type: string, format: JWT }
+
+  headers:
+    CacheControlHeader:
+      description: Direttiva RFC 7234 (no-store per dati sensibili).
+      schema: { type: string, enum: [no-store] }
+    X-RateLimit-Limit:
+      description: Numero massimo di richieste consentite.
+      schema: { type: integer, format: int32 }
+    X-RateLimit-Remaining:
+      description: Numero di richieste rimanenti.
+      schema: { type: integer, format: int32 }
+    X-RateLimit-Reset:
+      description: Tempo rimanente al reset (secondi).
+      schema: { type: integer, format: int32 }
+    RetryAfterHeader:
+      description: Tempo di attesa per riprovare (RFC 7231).
+      schema: { type: string, example: "3600" }
+
+  schemas:
+    CredentialClaimsRequest:
+      type: object
+      required: [unique_id]
+      properties:
+        unique_id:
+          type: string
+          description: Identificativo univoco del dipendente (es. Codice Fiscale).
+
+    BadgeResponse:
+      type: object
+      required: [userClaims, attributeClaims, metadataClaims]
+      properties:
+        userClaims:
+          type: object
+          properties:
+            given_name: { type: string, example: "Mario" }
+            family_name: { type: string, example: "Rossi" }
+            birth_date: { type: string, format: date }
+            birth_place: { type: string, example: "Roma" }
+            tax_id_code: { type: string, example: "TINIT-RSSMRO75E05H501Z" }
+        attributeClaims:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmployeeAttributeClaims"
+        metadataClaims:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetadataClaims"
+        interval:
+          type: integer
+          format: int64
+          example: 864000
+
+    EmployeeAttributeClaims:
+      type: object
+      required: [object_id, status, last_updated, legalName, identifier, logo, image]
+      properties:
+        object_id: { type: string }
+        status: { type: string, enum: [VALID, INVALID, SUSPENDED] }
+        last_updated: { type: string, format: date-time }
+        # Organization Claims
+        legalName: { type: string, description: "Nome dell’Organizzazione" }
+        legalAddress: { type: string, description: "Indirizzo postale dell’organizzazione" }
+        location: { type: string, description: "Località o area geografica" }
+        logo: { type: string, format: byte, description: "Logo aziendale (Base64)" }
+        vatID: { type: string, description: "Partita IVA organizzazione" }
+        # Employee/PII Claims
+        identifier: { type: string, description: "Identificativo univoco del dipendente" }
+        jobTitle: { type: string, description: "Qualifica professionale" }
+        honorificPrefix: { type: string, description: "Es: Dott./Sig./Sig.ra" }
+        email: { type: string, format: email, description: "Indirizzo email professionale" }
+        telephone: { type: string, description: "Numero di telefono professionale" }
+        image: { type: string, format: byte, description: "Foto del professionista (Base64)" }
+        address: { type: string, description: "Indirizzo postale individuale" }
+
+    MetadataClaims:
+      type: object
+      required: [object_id, issuance_date, expiry_date]
+      properties:
+        object_id: { type: string }
+        issuance_date: { type: string, format: date, description: "validFrom" }
+        expiry_date: { type: string, format: date, description: "validThrough" }
+
+    ProblemDetails:
+      type: object
+      required: [title, status, detail]
+      properties:
+        title: { type: string }
+        status: { type: integer, format: int32 }
+        detail: { type: string }

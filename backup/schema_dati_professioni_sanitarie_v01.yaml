@@ -1,0 +1,110 @@
+openapi: 3.1.1
+info: {
+  title: "Schema dati per Tesserino Professioni Sanitarie IT-Wallet",
+  version: 0.1.0
+}
+paths: {}
+
+components:
+  schemas:
+    CredentialClaimsResponse:
+      type: object
+      properties:
+        userClaims:
+          description: List of User Claims.
+          type: object
+          required: [tax_id_code, given_name, family_name]
+          properties:
+            given_name:
+              description: Current First Name.
+              type: string
+              example: "Mario"
+            family_name:
+              description: Current Family Name.
+              type: string
+              example: "Rossi"
+            tax_id_code:
+              description: National tax identification number.
+              type: string
+              pattern: '^(?:^(?:[A-Z][AEIOU][AEIOUX]|[B-DF-HJ-NP-TV-Z]{2}[A-Z]){2}(?:[\dLMNP-V]{2}(?:[A-EHLMPR-T](?:[04LQ][1-9MNP-V]|[15MR][\dLMNP-V]|[26NS][0-8LMNP-U])|[DHPS][37PT][0L]|[ACELMRT][37PT][01LM]|[AC-EHLMPR-T][26NS][9V])|(?:[02468LNQSU][048LQU]|[13579MPRTV][26NS])B[26NS][9V])(?:[A-MZ][1-9MNP-V][\dLMNP-V]{2}|[A-M][0L](?:[1-9MNP-V][\dLMNP-V]|[0L][1-9MNP-V]))[A-Z]$)'
+              minLength: 16
+              maxLength: 16
+              example: "RSSMRA80A01H501Z"
+        attributeClaims:
+          description: List of Datasets of Attribute.
+          type: array
+          items:
+            type: object
+            required: [object_id, status, last_updated, issuing_organization_name, registration_number]
+            properties:
+              object_id:
+                description: Unique identifier of the Dataset.
+                type: string
+                format: uuid
+                example: "6F9619FF-8B86-D011-B42D-00C04FC964FF"
+              status:
+                description: Status of the Dataset.
+                type: string
+                enum: ["VALID", "INVALID", "SUSPENDED"]
+                example: "VALID"
+              last_updated:
+                description: Last time the status or attributes of the Dataset have been updated.
+                type: string
+                format: date-time
+                example: "2025-01-15T10:30:00Z"
+              issuing_organization_name:
+                description: Denominazione dell'Ordine Provinciale/Territoriale
+                type: string
+                maxLength: 150
+                minLength: 5
+                examples:
+                  - "OMCeO di Roma"
+                  - "Ordine dei Farmacisti della Provincia di Roma"
+                  - "ORDINE DELLA PROFESSIONE DI OSTETRICA/O INTERPROVINCIALE di BG, CR, CO, LC, LO, MI, MB, SO"
+              registration_number:
+                description: Numero iscrizione all'albo
+                type: string
+                minLength: 2
+                maxLength: 12
+                example: "0001234"
+              professional_albo:
+                description: Sigla Albo o Sezione di appartenenza (e.g. M=Medici, O=Odontoiatri, A=SezioneA, B=SezioneB)
+                minLength: 1
+                maxLength: 3
+                type: string
+                example: "MO"
+              x-todo: Image formats to be reviewed with IT-Wallet team
+              organization_logo:
+                description: Logo Ordine Territoriale (max 10KB)
+                type: string
+                format: byte
+                contentEncoding: base64
+                contentMediaType: image/jpeg
+              federation_logo:
+                description: Logo Federazione Nazionale o Consiglio Nazionale (max 10KB)
+                type: string
+                format: byte
+                contentEncoding: base64
+                contentMediaType: image/jpeg
+        metadataClaims:
+          description: List of Metadata Claims.
+          type: array
+          items:
+            type: object
+            required: [object_id, issuance_date]
+            properties:
+              object_id:
+                description: Unique identifier of the Dataset.
+                type: string
+                format: uuid
+                example: "6F9619FF-8B86-D011-B42D-00C04FC964FF"
+              issuance_date:
+                description: Administrative validity start date of the Dataset (Data Rilascio)
+                type: string
+                format: date
+                example: "2025-01-01"
+        interval:
+          description: Represents the estimated amount of time (in seconds) required before making the request again.
+          type: integer
+          format: int64
+          example: 864000
